@@ -1,83 +1,63 @@
-ball = {}
-    ball.radius = 25
+require "classes/ball"
 
-    ball.position = {}
-    ball.position.x = love.graphics.getWidth() / 2
-    ball.position.y = love.graphics.getHeight() / 2
+ball = Ball:new()
 
-    ball.velocity = {}
-    ball.velocity.x = 0
-    ball.velocity.y = 0
+platforms = {}
+platformP1 = {}
+platformP2 = {}
 
-    gravity = 0.98
-
-    ball.applyInitialVelocity = function()
-        initialVelocity = {}
-        initialVelocity.x = ball.position.x - love.mouse.getX()
-        initialVelocity.y = ball.position.y - love.mouse.getY()
-
-        ball.velocity.x = initialVelocity.x / 5
-        ball.velocity.y = initialVelocity.y / 5
-    end
-
-    ball.applyGravity = function()
-        ball.velocity.y = ball.velocity.y + gravity
-    end
-
-    ball.move = function()
-        ball.position.x = ball.position.x + ball.velocity.x
-        ball.position.y = ball.position.y + ball.velocity.y
-    end
-
-    ball.bounce = function()
-        if ball.position.x <= ball.radius then
-            ball.position.x = ball.radius
-            ball.velocity.x = ball.velocity.x * -0.75
-        end
-
-        if ball.position.x >= love.graphics.getWidth() - ball.radius then
-            ball.position.x = love.graphics.getWidth() - ball.radius
-            ball.velocity.x = ball.velocity.x * -0.75
-        end
-
-        if ball.position.y <= ball.radius then
-            ball.position.y = ball.radius
-            ball.velocity.y = ball.velocity.y * -0.75
-        end
-
-        if ball.position.y >= love.graphics.getHeight() - ball.radius then
-            ball.position.y = love.graphics.getHeight() - ball.radius
-            ball.velocity.y = ball.velocity.y * -0.75
-            ball.velocity.x = ball.velocity.x * 0.99;
-        end
-    end
-
-started = false
+shotStarted = false
+shotEnded = false
 dragging = false
 
-function checkStart()
+function drawDrag(initialClick)
+    if initialClick.x then
+        love.graphics.line(initialClick.x,
+                        initialClick.y,
+                        love.mouse.getX(),
+                        love.mouse.getY())
+    end
+end
+
+function checkShotStarted()
     dx = ball.position.x - love.mouse.getX();
     dy = ball.position.y - love.mouse.getY();
     distance = math.sqrt(dx * dx + dy * dy);
 
     if distance <= ball.radius then
-        return true
+        shotStarted = true
     end
 end
 
 function love.mousepressed(x, y, button, istouch)
-    if button == 1 and started == false then
-        if checkStart() == true then
-            started = true
+    if button == 1 or istouch == true then
+        if shotEnded == false then
             dragging = true
+            checkShotStarted()
+            if shotStarted == false then
+                platformP1.x = love.mouse.getX()
+                platformP1.y = love.mouse.getY()
+            end
         end
     end
 end
 
 function love.mousereleased(x, y, button, istouch, presses)
-    if button == 1 and dragging == true then
-        dragging = false
-        ball.applyInitialVelocity()
+    if button == 1 or istouch == true then
+        if shotStarted == true and shotEnded == false then
+            dragging = false
+            shotEnded = true
+            ball:shoot()
+        elseif shotStarted == false then
+            platformP2.x = love.mouse.getX()
+            platformP2.y = love.mouse.getY()
+            finalPlatform = {}
+            finalPlatform.p1 = platformP1
+            finalPlatform.p2 = platformP2
+            table.insert(platforms, finalPlatform)
+            platformP1 = {}
+            platformP2 = {}
+        end
     end
  end
 
@@ -86,17 +66,32 @@ function love.load()
 end
 
 function love.update()
-    if started == true and dragging == false then
-        ball.applyGravity()
-        ball.move()
-        ball.bounce()
+    if shotStarted == true and dragging == false then
+        ball:applyGravity()
+        ball:move()
+        ball:bounce()
     end
 end
 
 function love.draw()
     if dragging == true then
-        love.graphics.line(ball.position.x, ball.position.y, love.mouse.getX(), love.mouse.getY())
+        if shotStarted == true then
+            drawDrag(ball.position)
+        else
+            drawDrag(platformP1)
+        end
     end
 
-    love.graphics.circle("fill", ball.position.x, ball.position.y, ball.radius)
+    love.graphics.circle("fill",
+                         ball.position.x,
+                         ball.position.y,
+                         ball.radius)
+
+    for i, platform in ipairs(platforms) do
+        love.graphics.line(platform.p1.x,
+                           platform.p1.y,
+                           platform.p2.x,
+                           platform.p2.y)
+    end
 end
+
